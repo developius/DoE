@@ -1,0 +1,25 @@
+* {
+	box-sizing: border-box;
+}
+html, body {
+	height: 100%;
+	margin: 0;
+	padding: 0;
+}
+#map {
+	height: 90vh;
+}
+.leaflet-popup-content {
+	width: 100% !important;
+}
+.leaflet-popup-content img {
+	width: 500px;
+	max-width: calc(100vw - 100px);
+	margin-top: 20px;
+	height: auto;
+	display: block;
+}
+.chart-container {
+	display: inline-block;
+	width: 100%;
+}

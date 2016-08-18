@@ -1,0 +1,20 @@
+{
+  "name": "DoE",
+  "authors": [
+    "Finnian Anderson <finnian@fxapi.co.uk>"
+  ],
+  "description": "",
+  "main": "",
+  "license": "MIT",
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "Leaflet.MultiOptionsPolyline": "hgoebl/Leaflet.MultiOptionsPolyline#^0.8.1"
+  }
+}

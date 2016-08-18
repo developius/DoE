@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+  <head>
+	<title>Finnian's DoE Expedition</title>
+	<meta name="viewport" content="initial-scale=1.0">
+	<meta charset="utf-8">
+	<link rel="stylesheet" href="https://npmcdn.com/leaflet@1.0.0-rc.2/dist/leaflet.css" />
+	<script src="https://npmcdn.com/leaflet@1.0.0-rc.2/dist/leaflet.js"></script>
+	<script src="bower_components/Leaflet.MultiOptionsPolyline/Leaflet.MultiOptionsPolyline.min.js"></script>
+	<script src="data.js"></script>
+	<script src="pictures.js"></script>
+	<script src="camdata.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.1.6/Chart.min.js"></script>
+	<link rel="stylesheet" type="text/css" href="doe.css">
+  </head>
+  <body>
+	<div id="map"></div>
+	<div id="charts">
+		<div class="chart-container">
+			<canvas id="speed-chart"></canvas>
+		</div>
+	</div>
+	<script>
+	var map = L.map('map').setView([52.307608, 0.444435], 11);
+	var cam = [];
+	var min_speed = 0;
+	var max_speed = 0;
+	var total_speed = 0;
+	var avg_speed;
+	var speed_data = {mean:[], max: [], altitude: []};
+	var speed_labels = [];
+
+	function prettyDate(d) {
+		return ("0" + d.getUTCDate()).slice(-2) + "/" +
+			("0" + (d.getUTCMonth()+1)).slice(-2) +"/"+
+			d.getUTCFullYear() +" "+
+			("0" + d.getUTCHours()).slice(-2) + ":" +
+			("0" + d.getUTCMinutes()).slice(-2) + ":" +
+			("0" + d.getUTCSeconds()).slice(-2);
+	}
+
+	for (var i = 0; i < camdata.length; i++){
+		var lat = camdata[i].latitude;
+		var long = camdata[i].longitude;
+		var speed = camdata[i].speed;
+
+		cam.push({lat: lat, lng: long, speed: speed});
+		if (max_speed < speed) max_speed = speed;
+		if (min_speed > speed) min_speed = speed;
+		if (speed != 0) {
+			total_speed += speed;
+		}
+	}
+	avg_speed = total_speed / camdata.length;
+
+	for (var i = 0; i < camdata.length; i++) {
+		var speed_snapshot = 0;
+		var snapshot_max_speed = 0;
+
+		var altitude_snapshot = 0;
+
+		for (var i2 = 0; i2 < 100; i2++){
+			if (camdata[i + i2]){
+				speed_snapshot += camdata[i + i2].speed;
+				if (camdata[i + i2].speed > snapshot_max_speed) snapshot_max_speed = camdata[i + i2].speed;
+				altitude_snapshot += camdata[i + i2].altitude;
+			} else {
+				break;
+			}
+		}
+		speed_snapshot = speed_snapshot / 100;
+		altitude_snapshot = Math.round(altitude_snapshot / 100);
+		
+		var matches = /([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})/g.exec(parseInt(camdata[i].date + "" + camdata[i].time));
+		var d = new Date(matches[2] + "/" + matches[1] + "/" + matches[3] + " " + matches[4] + ":" + matches[5] + ":" + matches[6]);
+
+		var date = prettyDate(d);
+
+		if (speed < 8) {
+			speed_labels.push(date);
+			speed_data.mean.push({x: date, y: speed_snapshot});
+			speed_data.max.push({x: date, y: snapshot_max_speed});
+			speed_data.altitude.push({x: date, y: altitude_snapshot});
+		}
+		i+=100
+	}
+
+	var speedChart = new Chart(document.getElementById("speed-chart"), {
+		type: "line",
+		data: {
+			labels: speed_labels,
+			datasets: [{
+				label: "Mean speed",
+				data: speed_data.mean,
+				backgroundColor: "rgba(75,192,192,0.4)"
+			}, {
+				label: "Max speed",
+				data: speed_data.max,
+				backgroundColor: "rgba(153, 102, 255, 0.2)"
+			}, {
+				label: "Altitude",
+				data: speed_data.altitude,
+				backgroundColor: "rgba(153, 102, 0, 0.2)"
+			}	]
+		}
+	});
+
+	for (var i = 0; i < picturedata.length; i++){
+		var time = picturedata[i][1].GPSTimeStamp;
+		for (var index = 0; index < time.length; index++){
+			time[index] = String(time[index]);
+			if (time[index].length == 1){
+				time[index] = "0" + time[index];
+			}
+		}
+		var date = picturedata[i][1].GPSDateStamp.split(":").reverse();
+		var temp_day = date[0];
+		date[0] = date[1];
+		date[1] = temp_day;
+		var d = date.join("/") + " " + time.join(":");
+		d = new Date(d);
+		L.marker([picturedata[i][1].GPSLatitude, picturedata[i][1].GPSLongitude])
+			.bindPopup("<img src='images/"+picturedata[i][0]+"'><p>"+prettyDate(d)+"</p>")
+			.addTo(map);
+	}
+
+	var line = new L.multiOptionsPolyline(cam, {
+		weight: 5,
+		multiOptions: {
+			optionIdxFn: function (latLng) {
+				var i,
+				altThresholds = [0, 1, 2, 3, 4, 5, 6];
+
+				for (i = 0; i < altThresholds.length; ++i) {
+					if (latLng.speed <= altThresholds[i]) {
+						return i;
+					}
+				}
+				return altThresholds.length;
+			},
+			options: [
+				{color: '#c03e00'}, {color: '#b84600'}, {color: '#b04e00'},
+				{color: '#a85600'}, {color: '#a05e00'}, {color: '#986600'},
+				{color: '#906e00'}, {color: '#00ff00'}
+			]
+		}
+	}).addTo(map);
+	L.tileLayer('https://api.mapbox.com/styles/v1/developius/ciquvn1d8000a0cnmcovd48zo/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZGV2ZWxvcGl1cyIsImEiOiJjaXF1dm04OTUwMDZ1aHduaWhwNnludW8wIn0.9X4aswG5u4N6uFK0XNkzbA', {
+		attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
+		maxZoom: 18,
+		// id: 'your.mapbox.project.id',
+		accessToken: 'pk.eyJ1IjoiZGV2ZWxvcGl1cyIsImEiOiJjaXF1dm04OTUwMDZ1aHduaWhwNnludW8wIn0.9X4aswG5u4N6uFK0XNkzbA'
+	}).addTo(map);
+
+	map.on('popupopen', function(e) {
+		var px = map.project(e.popup._latlng); // find the pixel location on the map where the popup anchor is
+		px.y -= e.popup._container.clientHeight/2 // find the height of the popup container, divide by 2, subtract from the Y axis of marker location
+		map.panTo(map.unproject(px),{animate: true}); // pan to new center
+	});
+
+	</script>
+	<script>
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+	ga('create', 'UA-73944565-1', 'auto');
+	ga('send', 'pageview');
+	</script>
+	<p style="text-align:center;font:12px/1.5 'Helvetica Neue', Arial, Helvetica, sans-serif;">&copy; 2016 <a href="http://finnian.io">Finnian Anderson</a></p>
+  </body>
+</html>
