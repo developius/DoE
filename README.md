@@ -1,3 +1,2 @@
 # DoE
-[Finnian's](http://finnian.io) Gold DoE Expedition presentation.
-
+[Finnian's Gold DoE Expedition presentation](http://finnian.io/DoE)
